@@ -622,12 +622,15 @@ function loadData() {
     const data = snapshot.val() || {};
     const newLastUpdated = data.lastUpdated || Date.now();
 
-    console.log("📥 loadData started. Previous:", lastKnownLastUpdated, "New:", newLastUpdated);
+    // Get previous timestamp from localStorage (persists across sessions)
+    let previousTimestamp = parseInt(localStorage.getItem('lastKnownLastUpdated') || '0');
 
-    const hadPreviousData = lastKnownLastUpdated > 0;
-    const hasNewChanges = newLastUpdated > lastKnownLastUpdated;
+    console.log("📥 loadData started. Previous:", previousTimestamp, "New:", newLastUpdated);
 
-    // Update data
+    const hadPreviousData = previousTimestamp > 0;
+    const hasNewChanges = newLastUpdated > previousTimestamp;
+
+    // Update the actual data
     completed = new Set(data.completed || []);
     completedFull = new Set(data.completedFull || []);
     events = data.events || {};
@@ -640,15 +643,15 @@ function loadData() {
     updateTodayView();
     updateProgress();
 
-    // Show popup if there were changes since last visit
     if (hadPreviousData && hasNewChanges) {
       console.log("✅ Showing changes popup");
       showChangesPopup();
-    } else if (!hadPreviousData) {
-      console.log("First load - no popup");
+    } else {
+      console.log("No popup this time");
     }
 
-    lastKnownLastUpdated = newLastUpdated;
+    // Save the new timestamp for next time
+    localStorage.setItem('lastKnownLastUpdated', newLastUpdated);
   }).catch(err => {
     console.error('Load error:', err);
   });
