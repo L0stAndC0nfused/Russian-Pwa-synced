@@ -347,6 +347,12 @@ body{height:100%;width:100%;overflow:hidden;background:var(--bg);font-family:'In
   <span id="sync-text">Syncing...</span>
 </div>
 
+<!-- APP VERSION -->
+<div style="position:fixed; top:calc(var(--sat) + 12px); left:12px; z-index:999;
+     font-size:11px; color:#666; font-weight:500; pointer-events:none;">
+  V5.3.2
+</div>
+
 <style>
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 </style>
@@ -551,27 +557,23 @@ function showChangesPopup() {
     max-width:300px; text-align:center; border:1px solid #d4a843;
   `;
   popup.innerHTML = `
-    <div style="font-weight:600; margin-bottom:6px;">📬 Updates</div>
+    <div style="font-weight:600; margin-bottom:8px;">📬 Changes have been made</div>
     <div style="font-size:13.5px; line-height:1.5; opacity:0.95;">
-      Some changes have been made since you last used the app.
+      Some changes were made since you last used the app.<br>
+      <small style="opacity:0.7;">(Check the calendar and Progress tab)</small>
     </div>
   `;
 
   document.body.appendChild(popup);
 
-  // Auto dismiss
   setTimeout(() => {
     popup.style.transition = 'all 0.4s ease';
     popup.style.opacity = '0';
     popup.style.transform = 'translate(-50%, -30px)';
     setTimeout(() => popup.remove(), 500);
-  }, 5000);
+  }, 5500);
 
-  // Click to dismiss
-  popup.addEventListener('click', () => {
-    popup.style.opacity = '0';
-    setTimeout(() => popup.remove(), 400);
-  });
+  popup.addEventListener('click', () => popup.remove());
 }
 
 function saveAll() {
@@ -600,7 +602,6 @@ function handleRealtimeUpdate(snapshot) {
   const data = snapshot.val();
   if (!data || !data.lastUpdated) return;
 
-  // Only update if change came from Jenny (not our own change)
   if (Math.abs(Date.now() - data.lastUpdated) > 4000) {
     completed = new Set(data.completed || []);
     completedFull = new Set(data.completedFull || []);
@@ -613,7 +614,11 @@ function handleRealtimeUpdate(snapshot) {
     renderCalendar();
     updateTodayView();
     updateProgress();
-    // No sync indicator for background updates
+
+    // Show popup for changes from the other person
+    if (lastKnownLastUpdated > 0) {
+      showChangesPopup();
+    }
   }
 }
 
