@@ -539,6 +539,41 @@ function showSyncIndicator(syncing = true) {
   }
 }
 
+// Track when we last saw the data on THIS device
+let lastKnownLastUpdated = 0;
+
+function showChangesPopup() {
+  const popup = document.createElement('div');
+  popup.style.cssText = `
+    position:fixed; top:calc(var(--sat) + 80px); left:50%; transform:translateX(-50%);
+    background:#18181b; color:#f4f4f5; padding:16px 22px; border-radius:16px;
+    box-shadow:0 10px 40px rgba(0,0,0,0.7); z-index:2000; font-size:14px;
+    max-width:300px; text-align:center; border:1px solid #d4a843;
+  `;
+  popup.innerHTML = `
+    <div style="font-weight:600; margin-bottom:6px;">📬 Updates</div>
+    <div style="font-size:13.5px; line-height:1.5; opacity:0.95;">
+      Some changes have been made since you last used the app.
+    </div>
+  `;
+
+  document.body.appendChild(popup);
+
+  // Auto dismiss
+  setTimeout(() => {
+    popup.style.transition = 'all 0.4s ease';
+    popup.style.opacity = '0';
+    popup.style.transform = 'translate(-50%, -30px)';
+    setTimeout(() => popup.remove(), 500);
+  }, 5000);
+
+  // Click to dismiss
+  popup.addEventListener('click', () => {
+    popup.style.opacity = '0';
+    setTimeout(() => popup.remove(), 400);
+  });
+}
+
 function saveAll() {
   showSyncIndicator(true);
 
@@ -565,7 +600,8 @@ function handleRealtimeUpdate(snapshot) {
   const data = snapshot.val();
   if (!data || !data.lastUpdated) return;
 
-  if (Math.abs(Date.now() - data.lastUpdated) > 3000) {
+  // Only update if change came from Jenny (not our own change)
+  if (Math.abs(Date.now() - data.lastUpdated) > 4000) {
     completed = new Set(data.completed || []);
     completedFull = new Set(data.completedFull || []);
     events = data.events || {};
@@ -577,14 +613,16 @@ function handleRealtimeUpdate(snapshot) {
     renderCalendar();
     updateTodayView();
     updateProgress();
+    // No sync indicator for background updates
   }
 }
 
 function loadData() {
-  showSyncIndicator(true);
   db.ref('progress').once('value').then(snapshot => {
     const data = snapshot.val() || {};
+    const newLastUpdated = data.lastUpdated || 0;
 
+    // Update data
     completed = new Set(data.completed || []);
     completedFull = new Set(data.completedFull || []);
     events = data.events || {};
@@ -596,15 +634,31 @@ function loadData() {
     renderCalendar();
     updateTodayView();
     updateProgress();
-    showSyncIndicator(false);
+
+    // Show popup if there were changes since last time THIS device was open
+    if (lastKnownLastUpdated > 0 && newLastUpdated > lastKnownLastUpdated) {
+      showChangesPopup();
+    }
+
+    // Update our local "last seen" timestamp
+    lastKnownLastUpdated = newLastUpdated;
   }).catch(err => {
     console.error('Load error:', err);
-    showSyncIndicator(false);
   });
 }
 
 // Load data when app starts
 loadData();
+
+// Real-time updates from Jenny's phone (quiet background sync)
+db.ref('progress').on('value', handleRealtimeUpdate);
+
+// Quiet backup check every 5 seconds
+setInterval(() => {
+  db.ref('progress').once('value').then(snapshot => {
+    handleRealtimeUpdate(snapshot);
+  }).catch(() => {});
+}, 5000);
 
 
 // ═══════════════════════════════════════════════════════════
