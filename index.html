@@ -620,9 +620,13 @@ function handleRealtimeUpdate(snapshot) {
 function loadData() {
   db.ref('progress').once('value').then(snapshot => {
     const data = snapshot.val() || {};
-    const newLastUpdated = data.lastUpdated || 0;
+    const newLastUpdated = data.lastUpdated || Date.now();
 
-    // Update data
+    // Store previous state for comparison
+    const hadPreviousData = lastKnownLastUpdated > 0;
+    const hasNewChanges = newLastUpdated > lastKnownLastUpdated;
+
+    // Update the actual data
     completed = new Set(data.completed || []);
     completedFull = new Set(data.completedFull || []);
     events = data.events || {};
@@ -635,12 +639,12 @@ function loadData() {
     updateTodayView();
     updateProgress();
 
-    // Show popup if there were changes since last time THIS device was open
-    if (lastKnownLastUpdated > 0 && newLastUpdated > lastKnownLastUpdated) {
+    // Show popup only if this is not the first load AND there are new changes
+    if (hadPreviousData && hasNewChanges) {
       showChangesPopup();
     }
 
-    // Update our local "last seen" timestamp
+    // Remember the latest timestamp for next time
     lastKnownLastUpdated = newLastUpdated;
   }).catch(err => {
     console.error('Load error:', err);
