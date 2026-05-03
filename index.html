@@ -622,11 +622,12 @@ function loadData() {
     const data = snapshot.val() || {};
     const newLastUpdated = data.lastUpdated || Date.now();
 
-    // Store previous state for comparison
+    console.log("📥 loadData started. Previous:", lastKnownLastUpdated, "New:", newLastUpdated);
+
     const hadPreviousData = lastKnownLastUpdated > 0;
     const hasNewChanges = newLastUpdated > lastKnownLastUpdated;
 
-    // Update the actual data
+    // Update data
     completed = new Set(data.completed || []);
     completedFull = new Set(data.completedFull || []);
     events = data.events || {};
@@ -639,12 +640,14 @@ function loadData() {
     updateTodayView();
     updateProgress();
 
-    // Show popup only if this is not the first load AND there are new changes
+    // Show popup if there were changes since last visit
     if (hadPreviousData && hasNewChanges) {
+      console.log("✅ Showing changes popup");
       showChangesPopup();
+    } else if (!hadPreviousData) {
+      console.log("First load - no popup");
     }
 
-    // Remember the latest timestamp for next time
     lastKnownLastUpdated = newLastUpdated;
   }).catch(err => {
     console.error('Load error:', err);
